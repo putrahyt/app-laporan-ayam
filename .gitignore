@@ -1,0 +1,47 @@
+# ========================
+# GLOBAL
+# ========================
+node_modules/
+.env
+.env.*
+*.log
+.DS_Store
+Thumbs.db
+
+# ========================
+# BACKEND
+# ========================
+backend/node_modules/
+
+# ========================
+# FRONTEND (Vite)
+# ========================
+frontend/node_modules/
+frontend/dist/
+
+# ========================
+# ELECTRON
+# ========================
+electron/node_modules/
+electron/dist/
+electron/dist-build/
+electron/*.exe
+
+# ========================
+# BUILD FILES
+# ========================
+dist/
+build/
+*.exe
+
+# ========================
+# IDE / EDITOR
+# ========================
+.vscode/
+.idea/
+
+# ========================
+# PACKAGE LOCK (opsional)
+# ========================
+# kalau mau include, hapus ini
+# package-lock.json
