@@ -496,9 +496,9 @@ export default function FormPembelian() {
           {['semua', 'Sudah Dibayar', 'Belum Dibayar'].map(s => (
             <button key={s} onClick={() => setFilterStatus(s)} style={{
               padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
-              borderColor: filterStatus === s ? (s === 'semua' ? '#dc2626' : s === 'Sudah Dibayar' ? '#059669' : '#dc2626') : '#e2e8f0',
-              background: filterStatus === s ? (s === 'semua' ? '#fef2f2' : s === 'Sudah Dibayar' ? '#f0fdf4' : '#fef2f2') : 'white',
-              color: filterStatus === s ? (s === 'semua' ? '#dc2626' : s === 'Sudah Dibayar' ? '#059669' : '#dc2626') : '#64748b',
+              borderColor: filterStatus === s ? (s === 'semua' ? '#2563eb' : s === 'Sudah Dibayar' ? '#059669' : '#dc2626') : '#e2e8f0',
+              background: filterStatus === s ? (s === 'semua' ? '#eff6ff' : s === 'Sudah Dibayar' ? '#f0fdf4' : '#fef2f2') : 'white',
+              color: filterStatus === s ? (s === 'semua' ? '#2563eb' : s === 'Sudah Dibayar' ? '#059669' : '#dc2626') : '#64748b',
             }}>
               {s === 'semua' ? '🔍 Semua' : s === 'Sudah Dibayar' ? '✅ Sudah Dibayar' : '❌ Belum Dibayar'}
             </button>

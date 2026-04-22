@@ -7,7 +7,7 @@ import Swal from 'sweetalert2';
 
 const API = 'http://localhost:3001/api';
 const STATUS_OPTIONS = ['Sudah Dibayar', 'Belum Dibayar'];
-const PER_PAGE = 30;
+const PER_PAGE = 50;
 
 function EditableText({ value, onSave }) {
   const [editing, setEditing] = useState(false);

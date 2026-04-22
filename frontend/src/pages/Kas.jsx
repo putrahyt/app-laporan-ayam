@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import Swal from 'sweetalert2';
 
 const API = 'http://localhost:3001/api';
-const PER_PAGE = 15;
+const PER_PAGE = 20;
 
 export default function Kas() {
   // Form pemasukan
@@ -171,6 +171,11 @@ export default function Kas() {
             <input type="number" placeholder="0" min="0" value={formMasuk.nominal}
               onChange={e => setFormMasuk({ ...formMasuk, nominal: e.target.value })}
               onKeyDown={e => e.key === 'Enter' && simpanMasuk()} />
+            {formMasuk.nominal && Number(formMasuk.nominal) > 0 && (
+              <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700, color: '#059669', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 7, padding: '5px 12px', display: 'inline-block' }}>
+                💵 Rp {Number(formMasuk.nominal).toLocaleString('id-ID')}
+              </div>
+            )}
           </div>
           <div className="form-group" style={{ marginBottom: 14 }}><label>Keterangan</label>
             <input type="text" placeholder="Contoh: Hasil jualan pagi..." value={formMasuk.keterangan}
@@ -191,6 +196,11 @@ export default function Kas() {
             <input type="number" placeholder="0" min="0" value={formKeluar.nominal}
               onChange={e => setFormKeluar({ ...formKeluar, nominal: e.target.value })}
               onKeyDown={e => e.key === 'Enter' && simpanKeluar()} />
+            {formKeluar.nominal && Number(formKeluar.nominal) > 0 && (
+              <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700, color: '#dc2626', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 7, padding: '5px 12px', display: 'inline-block' }}>
+                🔴 Rp {Number(formKeluar.nominal).toLocaleString('id-ID')}
+              </div>
+            )}
           </div>
           <div className="form-group" style={{ marginBottom: 14 }}><label>Keterangan</label>
             <input type="text" placeholder="Contoh: Beli pakan, Operasional..." value={formKeluar.keterangan}
