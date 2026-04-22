@@ -562,6 +562,135 @@ app.delete('/api/kas/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+
+// === EXPORT EXCEL KEUANGAN ===
+app.get('/api/export/keuangan', async (req, res) => {
+  const { dari, sampai } = req.query;
+  try {
+    const pKas = [], pJual = [], pBeli = [];
+    let wKas = 'WHERE 1=1', wJual = 'WHERE 1=1', wBeli = 'WHERE 1=1';
+    if (dari)   { wKas += ' AND tanggal >= ?'; pKas.push(dari);   wJual += ' AND tanggal >= ?'; pJual.push(dari);   wBeli += ' AND tanggal >= ?'; pBeli.push(dari); }
+    if (sampai) { wKas += ' AND tanggal <= ?'; pKas.push(sampai); wJual += ' AND tanggal <= ?'; pJual.push(sampai); wBeli += ' AND tanggal <= ?'; pBeli.push(sampai); }
+
+    const [kasRows] = await db.query(`SELECT id, tanggal, nominal, keterangan, tipe, 'kas' as sumber FROM kas ${wKas}`, pKas);
+    const [jualRows] = await db.query(
+      `SELECT NULL as id, tanggal, SUM(total) as nominal, CONCAT('Penjualan ayam tanggal ', DATE_FORMAT(tanggal, '%d/%m/%Y')) as keterangan, 'masuk' as tipe, 'penjualan' as sumber FROM penjualan ${wJual} GROUP BY tanggal`, pJual
+    );
+    const [beliRows] = await db.query(
+      `SELECT NULL as id, tanggal, SUM(total) as nominal, CONCAT('Pembelian ayam tanggal ', DATE_FORMAT(tanggal, '%d/%m/%Y')) as keterangan, 'keluar' as tipe, 'pembelian' as sumber FROM pembelian ${wBeli} GROUP BY tanggal`, pBeli
+    );
+
+    const semua = [...kasRows, ...jualRows, ...beliRows].sort((a, b) => {
+      if (b.tanggal > a.tanggal) return 1;
+      if (b.tanggal < a.tanggal) return -1;
+      return 0;
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Laporan Keuangan');
+
+    sheet.columns = [
+      { header: 'No',         key: 'no',         width: 6  },
+      { header: 'Tanggal',    key: 'tanggal',    width: 16 },
+      { header: 'Keterangan', key: 'keterangan', width: 40 },
+      { header: 'Tipe',       key: 'tipe',       width: 12 },
+      { header: 'Nominal (Rp)', key: 'nominal',  width: 20 },
+    ];
+
+    // Style header
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF047857' } };
+    headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+    headerRow.height = 28;
+
+    let totalMasuk = 0, totalKeluar = 0;
+
+    semua.forEach((row, i) => {
+      const isKeluar = row.tipe === 'keluar';
+      const nominal = Number(row.nominal);
+      if (isKeluar) totalKeluar += nominal; else totalMasuk += nominal;
+
+      const tipeLabel = row.sumber === 'penjualan' ? 'Penjualan'
+        : row.sumber === 'pembelian' ? 'Pembelian'
+        : row.tipe === 'masuk' ? 'Masuk' : 'Keluar';
+
+      const excelRow = sheet.addRow({
+        no: i + 1,
+        tanggal: new Date(row.tanggal).toLocaleDateString('id-ID'),
+        keterangan: row.keterangan || '-',
+        tipe: tipeLabel,
+        nominal: isKeluar ? -nominal : nominal,
+      });
+      excelRow.alignment = { vertical: 'middle' };
+      excelRow.height = 20;
+
+      const nominalCell = excelRow.getCell('nominal');
+      nominalCell.numFmt = '#,##0';
+      nominalCell.font = { color: { argb: isKeluar ? 'FFDC2626' : 'FF059669' }, bold: true };
+
+      const tipeCell = excelRow.getCell('tipe');
+      if (isKeluar) {
+        tipeCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+        tipeCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+      } else {
+        tipeCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+        tipeCell.font = { color: { argb: 'FF065F46' }, bold: true };
+      }
+
+      if (i % 2 === 1) {
+        excelRow.eachCell((cell, colNum) => {
+          if (colNum !== 4 && colNum !== 5 && !cell.fill?.fgColor) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+          }
+        });
+      }
+    });
+
+    // Baris total
+    sheet.addRow({});
+    const rowMasuk = sheet.addRow({ keterangan: 'TOTAL PEMASUKAN', nominal: totalMasuk });
+    rowMasuk.font = { bold: true };
+    rowMasuk.getCell('nominal').numFmt = '#,##0';
+    rowMasuk.getCell('nominal').font = { bold: true, color: { argb: 'FF059669' } };
+    rowMasuk.getCell('keterangan').font = { bold: true, color: { argb: 'FF059669' } };
+
+    const rowKeluar = sheet.addRow({ keterangan: 'TOTAL PENGELUARAN', nominal: -totalKeluar });
+    rowKeluar.font = { bold: true };
+    rowKeluar.getCell('nominal').numFmt = '#,##0';
+    rowKeluar.getCell('nominal').font = { bold: true, color: { argb: 'FFDC2626' } };
+    rowKeluar.getCell('keterangan').font = { bold: true, color: { argb: 'FFDC2626' } };
+
+    const hasil = totalMasuk - totalKeluar;
+    const rowHasil = sheet.addRow({ keterangan: 'HASIL BERSIH', nominal: hasil });
+    rowHasil.font = { bold: true, size: 12 };
+    rowHasil.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } };
+    rowHasil.getCell('nominal').numFmt = '#,##0';
+    rowHasil.getCell('nominal').font = { bold: true, size: 12, color: { argb: hasil >= 0 ? 'FF7C3AED' : 'FFF59E0B' } };
+
+    // Border semua
+    sheet.eachRow(row => {
+      row.eachCell(cell => {
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        };
+      });
+    });
+
+    const filename = dari === sampai
+      ? `laporan-keuangan-${dari}.xlsx`
+      : `laporan-keuangan-${dari}_sd_${sampai}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.listen(process.env.PORT, () => {
   console.log(`Server berjalan di port ${process.env.PORT}`);
 });

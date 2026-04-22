@@ -33,6 +33,13 @@ export default function Kas() {
   const [totalFilterMasuk, setTotalFilterMasuk] = useState(0);
   const [totalFilterKeluar, setTotalFilterKeluar] = useState(0);
 
+  // Export Excel
+  const [exportMode, setExportMode] = useState('harian'); // 'harian' | 'range' | 'bulanan'
+  const [exportTgl, setExportTgl] = useState(dayjs().format('YYYY-MM-DD'));
+  const [exportDari, setExportDari] = useState('');
+  const [exportSampai, setExportSampai] = useState('');
+  const [exportBulan, setExportBulan] = useState(dayjs().format('YYYY-MM'));
+
   useEffect(() => { loadSummary(); }, []);
   useEffect(() => { loadData(); }, [page]);
   useEffect(() => { setPage(1); loadData(1); }, [bulanFilter]);
@@ -123,6 +130,27 @@ export default function Kas() {
   };
 
   const hasilHariIni = pemasukanHariIni - pengeluaranHariIni;
+
+  const handleExport = async () => {
+    let dari_exp = '', sampai_exp = '';
+    if (exportMode === 'harian') {
+      dari_exp = exportTgl; sampai_exp = exportTgl;
+    } else if (exportMode === 'range') {
+      if (!exportDari || !exportSampai) { alert('Isi dari dan sampai tanggal!'); return; }
+      dari_exp = exportDari; sampai_exp = exportSampai;
+    } else {
+      dari_exp = dayjs(exportBulan + '-01').format('YYYY-MM-DD');
+      sampai_exp = dayjs(exportBulan + '-01').endOf('month').format('YYYY-MM-DD');
+    }
+    const res = await fetch(`${API}/export/keuangan?dari=${dari_exp}&sampai=${sampai_exp}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `laporan-keuangan-${dari_exp}${dari_exp !== sampai_exp ? '_sd_' + sampai_exp : ''}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div>
@@ -215,6 +243,62 @@ export default function Kas() {
       {/* === TABEL LAPORAN === */}
       <div className="card">
         <h2>📊 Tabel Laporan Keuangan</h2>
+
+        {/* === EXPORT EXCEL === */}
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 10 }}>
+            📥 Export Excel
+          </div>
+          {/* Tab mode */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+            {[['harian','📅 Harian'],['range','📆 Dari-Ke'],['bulanan','🗓️ Bulanan']].map(([val, label]) => (
+              <button key={val} onClick={() => setExportMode(val)}
+                style={{ padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
+                  borderColor: exportMode === val ? '#059669' : '#e2e8f0',
+                  background: exportMode === val ? '#f0fdf4' : 'white',
+                  color: exportMode === val ? '#059669' : '#64748b' }}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            {exportMode === 'harian' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>Tanggal</label>
+                <input type="date" value={exportTgl} onChange={e => setExportTgl(e.target.value)}
+                  style={{ padding: '7px 12px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13 }} />
+              </div>
+            )}
+            {exportMode === 'range' && (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>Dari tanggal</label>
+                  <input type="date" value={exportDari} onChange={e => setExportDari(e.target.value)}
+                    style={{ padding: '7px 12px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13 }} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>Sampai tanggal</label>
+                  <input type="date" value={exportSampai} onChange={e => setExportSampai(e.target.value)}
+                    style={{ padding: '7px 12px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13 }} />
+                </div>
+              </>
+            )}
+            {exportMode === 'bulanan' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>Bulan</label>
+                <input type="month" value={exportBulan} onChange={e => setExportBulan(e.target.value)}
+                  style={{ padding: '7px 12px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13 }} />
+              </div>
+            )}
+            <button onClick={handleExport}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#059669', color: 'white', border: 'none', borderRadius: 8, padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', height: 38 }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24">
+                <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 11l5 5 5-5M12 4v12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Export Excel
+            </button>
+          </div>
+        </div>
 
         {/* Filter Bulan */}
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
