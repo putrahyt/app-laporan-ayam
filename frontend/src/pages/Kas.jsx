@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import Swal from 'sweetalert2';
 
 const API = 'http://localhost:3001/api';
-const PER_PAGE = 20;
+const PER_PAGE = 30;
 
 export default function Kas() {
   // Form pemasukan
@@ -33,6 +33,9 @@ export default function Kas() {
   const [totalFilterMasuk, setTotalFilterMasuk] = useState(0);
   const [totalFilterKeluar, setTotalFilterKeluar] = useState(0);
 
+  // Filter mode tabel: 'bulanan' | 'range'
+  const [filterMode, setFilterMode] = useState('bulanan');
+
   // Export Excel
   const [exportMode, setExportMode] = useState('harian'); // 'harian' | 'range' | 'bulanan'
   const [exportTgl, setExportTgl] = useState(dayjs().format('YYYY-MM-DD'));
@@ -43,6 +46,17 @@ export default function Kas() {
   useEffect(() => { loadSummary(); }, []);
   useEffect(() => { loadData(); }, [page]);
   useEffect(() => { setPage(1); loadData(1); }, [bulanFilter]);
+
+  // Auto-search saat search berubah (debounce 400ms)
+  useEffect(() => {
+    const timer = setTimeout(() => { setPage(1); loadData(1); }, 400);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Auto-filter saat dari/sampai berubah
+  useEffect(() => {
+    setPage(1); loadData(1);
+  }, [dari, sampai]);
 
   const loadSummary = async () => {
     const today = dayjs().format('YYYY-MM-DD');
@@ -86,9 +100,9 @@ export default function Kas() {
     setLoading(false);
   };
 
-  const handleCari = () => { setPage(1); loadData(1); };
   const handleReset = () => {
     setSearch(''); setDari(''); setSampai(''); setBulanFilter('');
+    setFilterMode('bulanan');
     setPage(1); setTimeout(() => loadData(1), 50);
   };
 
@@ -300,15 +314,62 @@ export default function Kas() {
           </div>
         </div>
 
-        {/* Filter Bulan */}
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>Filter Bulan</label>
-            <input type="month" value={bulanFilter} onChange={e => setBulanFilter(e.target.value)}
-              style={{ padding: '7px 12px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13 }} />
+        {/* === FILTER TABEL === */}
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 10 }}>
+            🔍 Filter Data
           </div>
+          {/* Tab mode filter */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+            {[['bulanan','🗓️ Bulanan'],['range','📆 Dari-Ke']].map(([val, label]) => (
+              <button key={val} onClick={() => { setFilterMode(val); setDari(''); setSampai(''); setBulanFilter(''); }}
+                style={{ padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
+                  borderColor: filterMode === val ? '#2563eb' : '#e2e8f0',
+                  background: filterMode === val ? '#eff6ff' : 'white',
+                  color: filterMode === val ? '#2563eb' : '#64748b' }}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            {filterMode === 'bulanan' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>Filter Bulan</label>
+                <input type="month" value={bulanFilter} onChange={e => setBulanFilter(e.target.value)}
+                  style={{ padding: '7px 12px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13 }} />
+              </div>
+            )}
+            {filterMode === 'range' && (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>Dari tanggal</label>
+                  <input type="date" value={dari} onChange={e => setDari(e.target.value)}
+                    style={{ padding: '7px 12px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13 }} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>Sampai tanggal</label>
+                  <input type="date" value={sampai} onChange={e => setSampai(e.target.value)}
+                    style={{ padding: '7px 12px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13 }} />
+                </div>
+              </>
+            )}
+            <div style={{ flex: 1, minWidth: 200, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>Cari Keterangan</label>
+              <input type="text" placeholder="Ketik untuk mencari..."
+                value={search} onChange={e => setSearch(e.target.value)}
+                style={{ width: '100%', padding: '7px 12px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+              <button onClick={handleReset}
+                style={{ padding: '7px 16px', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', height: 36 }}>
+                Reset
+              </button>
+              <span style={{ fontSize: 13, color: '#94a3b8', alignSelf: 'center', whiteSpace: 'nowrap' }}>{totalRows} data</span>
+            </div>
+          </div>
+          {/* Ringkasan filter */}
           {(bulanFilter || dari || sampai) && (
-            <div style={{ alignSelf: 'flex-end', display: 'flex', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
               <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '7px 14px' }}>
                 <span style={{ fontSize: 12, color: '#475569' }}>Pemasukan: </span>
                 <span style={{ fontWeight: 700, fontSize: 13, color: '#059669' }}>Rp {Number(totalFilterMasuk).toLocaleString('id-ID')}</span>
@@ -319,30 +380,6 @@ export default function Kas() {
               </div>
             </div>
           )}
-        </div>
-
-        {/* Filter tanggal & cari */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>Dari tanggal</label>
-            <input type="date" value={dari} onChange={e => setDari(e.target.value)}
-              style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13 }} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>Sampai tanggal</label>
-            <input type="date" value={sampai} onChange={e => setSampai(e.target.value)}
-              style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13 }} />
-          </div>
-          <div style={{ flex: 1, minWidth: 200, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>Cari</label>
-            <input type="text" placeholder="Cari keterangan..."
-              value={search} onChange={e => setSearch(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleCari()}
-              style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13 }} />
-          </div>
-          <button onClick={handleCari} style={{ padding: '8px 18px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', height: 38 }}>Cari</button>
-          <button onClick={handleReset} style={{ padding: '8px 14px', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, cursor: 'pointer', height: 38 }}>Reset</button>
-          <span style={{ fontSize: 13, color: '#94a3b8', alignSelf: 'center' }}>{totalRows} data</span>
         </div>
 
         {/* Tabel */}
