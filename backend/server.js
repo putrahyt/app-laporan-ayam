@@ -363,130 +363,174 @@ app.delete('/api/master-satuan/:id', async (req, res) => {
 });
 
 
-// === KAS MASUK ===
 
-// GET - total keseluruhan (kas manual + semua penjualan)
-app.get('/api/kas/total', async (req, res) => {
+// ============================================================
+// === PEMBELIAN AYAM ===
+// ============================================================
+
+app.get('/api/pembelian', async (req, res) => {
+  const { search, dari, sampai } = req.query;
+  let query = `SELECT * FROM pembelian WHERE 1=1`;
+  const params = [];
+  if (search) { query += ` AND (nama LIKE ? OR catatan LIKE ?)`; params.push(`%${search}%`, `%${search}%`); }
+  if (dari) { query += ` AND tanggal >= ?`; params.push(dari); }
+  if (sampai) { query += ` AND tanggal <= ?`; params.push(sampai); }
+  query += ` ORDER BY tanggal DESC, id DESC`;
   try {
-    const [[{ totalKas }]] = await db.query('SELECT COALESCE(SUM(nominal), 0) as totalKas FROM kas');
-    const [[{ totalPenjualan }]] = await db.query('SELECT COALESCE(SUM(total), 0) as totalPenjualan FROM penjualan');
-    res.json({ total: Number(totalKas) + Number(totalPenjualan) });
+    const [rows] = await db.query(query, params);
+    res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// GET - semua data kas dengan pagination + filter (untuk tabel laporan)
+app.get('/api/pembelian/all', async (req, res) => {
+  const { search, dari, sampai, status, page = 1, limit = 15 } = req.query;
+  const offset = (page - 1) * limit;
+  let where = 'WHERE 1=1';
+  const params = [];
+  if (search) { where += ` AND (nama LIKE ? OR catatan LIKE ?)`; params.push(`%${search}%`, `%${search}%`); }
+  if (status) { where += ` AND status = ?`; params.push(status); }
+  if (dari) { where += ` AND tanggal >= ?`; params.push(dari); }
+  if (sampai) { where += ` AND tanggal <= ?`; params.push(sampai); }
+  const [[{ total }]] = await db.query(`SELECT COUNT(*) as total FROM pembelian ${where}`, params);
+  const [[{ grandTotal }]] = await db.query(`SELECT COALESCE(SUM(total), 0) as grandTotal FROM pembelian ${where}`, params);
+  const [rows] = await db.query(`SELECT * FROM pembelian ${where} ORDER BY tanggal DESC, id DESC LIMIT ? OFFSET ?`, [...params, Number(limit), Number(offset)]);
+  res.json({ rows, total, grandTotal: Number(grandTotal) });
+});
+
+app.get('/api/pembelian/:id', async (req, res) => {
+  const [rows] = await db.query(`SELECT * FROM pembelian WHERE id=?`, [req.params.id]);
+  res.json(rows[0] || {});
+});
+
+app.post('/api/pembelian', async (req, res) => {
+  const { tanggal, nama, items_detail, jumlah_item, harga_kotak, total, status, catatan } = req.body;
+  try {
+    const [result] = await db.query(
+      `INSERT INTO pembelian (tanggal, nama, items_detail, jumlah_item, harga_kotak, total, status, catatan) VALUES (?,?,?,?,?,?,?,?)`,
+      [tanggal, nama, items_detail, jumlah_item, harga_kotak || 0, total, status, catatan || '']
+    );
+    res.json({ id: result.insertId });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/pembelian/:id', async (req, res) => {
+  const fields = Object.keys(req.body).map(k => `${k}=?`).join(', ');
+  const values = [...Object.values(req.body), req.params.id];
+  await db.query(`UPDATE pembelian SET ${fields} WHERE id=?`, values);
+  res.json({ message: 'Updated' });
+});
+
+app.delete('/api/pembelian/:id', async (req, res) => {
+  await db.query(`DELETE FROM pembelian WHERE id=?`, [req.params.id]);
+  res.json({ message: 'Deleted' });
+});
+
+
+// ============================================================
+// === KAS / KEUANGAN ===
+// ============================================================
+
+// GET - summary total masuk/keluar per periode
+app.get('/api/kas/summary', async (req, res) => {
+  const { dari, sampai, tipe } = req.query;
+  try {
+    let totalKas = 0, totalTransaksi = 0;
+    const paramsKas = [];
+    let whereKas = 'WHERE 1=1';
+    if (tipe) { whereKas += ' AND tipe = ?'; paramsKas.push(tipe); }
+    if (dari) { whereKas += ' AND tanggal >= ?'; paramsKas.push(dari); }
+    if (sampai) { whereKas += ' AND tanggal <= ?'; paramsKas.push(sampai); }
+    const [[r]] = await db.query(`SELECT COALESCE(SUM(nominal),0) as t FROM kas ${whereKas}`, paramsKas);
+    totalKas = Number(r.t);
+
+    // Untuk tipe masuk: tambah penjualan. Untuk tipe keluar: tambah pembelian
+    if (tipe === 'masuk' || !tipe) {
+      const p = [];
+      let w = 'WHERE 1=1';
+      if (dari) { w += ' AND tanggal >= ?'; p.push(dari); }
+      if (sampai) { w += ' AND tanggal <= ?'; p.push(sampai); }
+      const [[rp]] = await db.query(`SELECT COALESCE(SUM(total),0) as t FROM penjualan ${w}`, p);
+      totalTransaksi += Number(rp.t);
+    }
+    if (tipe === 'keluar' || !tipe) {
+      const p = [];
+      let w = 'WHERE 1=1';
+      if (dari) { w += ' AND tanggal >= ?'; p.push(dari); }
+      if (sampai) { w += ' AND tanggal <= ?'; p.push(sampai); }
+      const [[rp]] = await db.query(`SELECT COALESCE(SUM(total),0) as t FROM pembelian ${w}`, p);
+      totalTransaksi += Number(rp.t);
+    }
+    res.json({ total: totalKas + totalTransaksi });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET - total keseluruhan kas
+app.get('/api/kas/total', async (req, res) => {
+  try {
+    const [[{ totalKas }]] = await db.query("SELECT COALESCE(SUM(CASE WHEN tipe='masuk' THEN nominal ELSE -nominal END), 0) as totalKas FROM kas");
+    const [[{ totalPenjualan }]] = await db.query('SELECT COALESCE(SUM(total), 0) as totalPenjualan FROM penjualan');
+    const [[{ totalPembelian }]] = await db.query('SELECT COALESCE(SUM(total), 0) as totalPembelian FROM pembelian');
+    res.json({ total: Number(totalKas) + Number(totalPenjualan) - Number(totalPembelian) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET - semua data kas/all dengan pagination (gabung kas+penjualan+pembelian)
 app.get('/api/kas/all', async (req, res) => {
   const { search, dari, sampai, page = 1, limit = 15 } = req.query;
   const offset = (page - 1) * limit;
-  const params = [];
-  const paramsPenjualan = [];
+  const pKas = [], pJual = [], pBeli = [];
+  let wKas = 'WHERE 1=1', wJual = 'WHERE 1=1', wBeli = 'WHERE 1=1';
 
-  let whereKas = 'WHERE 1=1';
-  let wherePenjualan = 'WHERE 1=1';
-
-  if (dari) {
-    whereKas += ' AND tanggal >= ?'; params.push(dari);
-    wherePenjualan += ' AND tanggal >= ?'; paramsPenjualan.push(dari);
-  }
-  if (sampai) {
-    whereKas += ' AND tanggal <= ?'; params.push(sampai);
-    wherePenjualan += ' AND tanggal <= ?'; paramsPenjualan.push(sampai);
-  }
-  if (search) {
-    whereKas += ' AND keterangan LIKE ?'; params.push(`%${search}%`);
-    wherePenjualan += ' AND CONCAT(\'Penjualan ayam tanggal \', DATE_FORMAT(tanggal, \'%d/%m/%Y\')) LIKE ?';
-    paramsPenjualan.push(`%${search}%`);
-  }
+  if (dari) { wKas += ' AND tanggal >= ?'; pKas.push(dari); wJual += ' AND tanggal >= ?'; pJual.push(dari); wBeli += ' AND tanggal >= ?'; pBeli.push(dari); }
+  if (sampai) { wKas += ' AND tanggal <= ?'; pKas.push(sampai); wJual += ' AND tanggal <= ?'; pJual.push(sampai); wBeli += ' AND tanggal <= ?'; pBeli.push(sampai); }
+  if (search) { wKas += ' AND keterangan LIKE ?'; pKas.push(`%${search}%`); }
 
   try {
-    const [kasRows] = await db.query(
-      `SELECT id, tanggal, nominal, keterangan, 'kas' as sumber FROM kas ${whereKas}`,
-      params
+    const [kasRows] = await db.query(`SELECT id, tanggal, nominal, keterangan, tipe, 'kas' as sumber FROM kas ${wKas}`, pKas);
+    const [jualRows] = await db.query(
+      `SELECT NULL as id, tanggal, SUM(total) as nominal, CONCAT('Penjualan ayam tanggal ', DATE_FORMAT(tanggal, '%d/%m/%Y')) as keterangan, 'masuk' as tipe, 'penjualan' as sumber FROM penjualan ${wJual} GROUP BY tanggal`, pJual
     );
-    const [penjualanRows] = await db.query(
-      `SELECT NULL as id, tanggal, SUM(total) as nominal,
-        CONCAT('Penjualan ayam tanggal ', DATE_FORMAT(tanggal, '%d/%m/%Y')) as keterangan,
-        'penjualan' as sumber
-      FROM penjualan ${wherePenjualan}
-      GROUP BY tanggal`,
-      paramsPenjualan
+    const [beliRows] = await db.query(
+      `SELECT NULL as id, tanggal, SUM(total) as nominal, CONCAT('Pembelian ayam tanggal ', DATE_FORMAT(tanggal, '%d/%m/%Y')) as keterangan, 'keluar' as tipe, 'pembelian' as sumber FROM pembelian ${wBeli} GROUP BY tanggal`, pBeli
     );
 
-    const semua = [...kasRows, ...penjualanRows].sort((a, b) => {
+    const semua = [...kasRows, ...jualRows, ...beliRows].sort((a, b) => {
       if (b.tanggal > a.tanggal) return 1;
       if (b.tanggal < a.tanggal) return -1;
-      return a.sumber === 'kas' ? -1 : 1;
+      return 0;
     });
 
     const total = semua.length;
-    const grandTotal = semua.reduce((s, r) => s + Number(r.nominal), 0);
+    const grandTotalMasuk = semua.filter(r => r.tipe === 'masuk').reduce((s, r) => s + Number(r.nominal), 0);
+    const grandTotalKeluar = semua.filter(r => r.tipe === 'keluar').reduce((s, r) => s + Number(r.nominal), 0);
     const rows = semua.slice(Number(offset), Number(offset) + Number(limit));
-    res.json({ rows, total, grandTotal });
+    res.json({ rows, total, grandTotalMasuk, grandTotalKeluar });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// GET - ambil data kas (kas manual + penjualan ayam) dengan filter tanggal
+// GET - ambil data kas dengan filter tanggal
 app.get('/api/kas', async (req, res) => {
   const { dari, sampai } = req.query;
+  let query = 'SELECT * FROM kas WHERE 1=1';
   const params = [];
-  const paramsPenjualan = [];
-
-  let whereKas = 'WHERE 1=1';
-  let wherePenjualan = 'WHERE 1=1';
-
-  if (dari) {
-    whereKas += ' AND tanggal >= ?'; params.push(dari);
-    wherePenjualan += ' AND tanggal >= ?'; paramsPenjualan.push(dari);
-  }
-  if (sampai) {
-    whereKas += ' AND tanggal <= ?'; params.push(sampai);
-    wherePenjualan += ' AND tanggal <= ?'; paramsPenjualan.push(sampai);
-  }
-
+  if (dari) { query += ' AND tanggal >= ?'; params.push(dari); }
+  if (sampai) { query += ' AND tanggal <= ?'; params.push(sampai); }
+  query += ' ORDER BY tanggal DESC, id DESC';
   try {
-    // Ambil data kas manual
-    const [kasRows] = await db.query(
-      `SELECT id, tanggal, nominal, keterangan, 'kas' as sumber FROM kas ${whereKas} ORDER BY tanggal DESC, id DESC`,
-      params
-    );
-
-    // Ambil total penjualan per hari dari tabel penjualan (dikelompokkan per tanggal)
-    const [penjualanRows] = await db.query(
-      `SELECT 
-        NULL as id,
-        tanggal,
-        SUM(total) as nominal,
-        CONCAT('Penjualan ayam tanggal ', DATE_FORMAT(tanggal, '%d/%m/%Y')) as keterangan,
-        'penjualan' as sumber
-      FROM penjualan
-      ${wherePenjualan}
-      GROUP BY tanggal
-      ORDER BY tanggal DESC`,
-      paramsPenjualan
-    );
-
-    // Gabungkan dan urutkan berdasarkan tanggal DESC
-    const semua = [...kasRows, ...penjualanRows].sort((a, b) => {
-      if (b.tanggal > a.tanggal) return 1;
-      if (b.tanggal < a.tanggal) return -1;
-      // kas manual di atas penjualan pada hari yang sama
-      if (a.sumber === 'kas' && b.sumber === 'penjualan') return -1;
-      return 1;
-    });
-
-    res.json(semua);
+    const [rows] = await db.query(query, params);
+    res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// POST - simpan kas baru
+// POST - simpan kas baru (masuk atau keluar)
 app.post('/api/kas', async (req, res) => {
-  const { tanggal, nominal, keterangan } = req.body;
+  const { tanggal, nominal, keterangan, tipe = 'masuk' } = req.body;
   try {
     const [result] = await db.query(
-      'INSERT INTO kas (tanggal, nominal, keterangan) VALUES (?, ?, ?)',
-      [tanggal, nominal, keterangan || '']
+      'INSERT INTO kas (tanggal, nominal, keterangan, tipe) VALUES (?, ?, ?, ?)',
+      [tanggal, nominal, keterangan || '', tipe]
     );
-    res.json({ id: result.insertId, tanggal, nominal, keterangan });
+    res.json({ id: result.insertId, tanggal, nominal, keterangan, tipe });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
