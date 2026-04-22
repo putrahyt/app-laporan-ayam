@@ -588,7 +588,7 @@ export default function FormInput() {
             const blob = await res.blob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url; a.download = `laporan-harian-${tglExport}.xlsx`; a.click();
+            a.href = url; a.download = `laporan-penjualan-harian-${tglExport}.xlsx`; a.click();
             URL.revokeObjectURL(url);
           }} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#059669', color: 'white', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
             Ekspor ke Excel

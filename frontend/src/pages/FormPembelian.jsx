@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import Swal from 'sweetalert2';
+import DetailPembelian from './DetailPembelian';
+import EditableItemsPembelian from './EditableItemsPembelian';
 
 const API = 'http://localhost:3001/api';
 const STATUS_OPTIONS = ['Sudah Dibayar', 'Belum Dibayar'];
@@ -113,6 +115,115 @@ function HargaInfo({ row }) {
   );
 }
 
+function ModalKelolaMaster({ onClose, onRefresh }) {
+  const [tab, setTab] = useState('item');
+  const [items, setItems] = useState([]);
+  const [satuans, setSatuans] = useState([]);
+  const [inputItem, setInputItem] = useState('');
+  const [inputSatuan, setInputSatuan] = useState('');
+  const [err, setErr] = useState('');
+
+  useEffect(() => { loadAll(); }, []);
+
+  const loadAll = () => {
+    axios.get(`${API}/master-item`).then(r => setItems(r.data));
+    axios.get(`${API}/master-satuan`).then(r => setSatuans(r.data));
+  };
+
+  const tambahItem = async () => {
+    if (!inputItem.trim()) { setErr('Nama item wajib diisi!'); return; }
+    try {
+      await axios.post(`${API}/master-item`, { nama: inputItem.trim() });
+      setInputItem(''); setErr('');
+      loadAll(); onRefresh();
+    } catch { setErr('Nama item sudah ada!'); }
+  };
+
+  const tambahSatuan = async () => {
+    if (!inputSatuan.trim()) { setErr('Nama satuan wajib diisi!'); return; }
+    try {
+      await axios.post(`${API}/master-satuan`, { nama: inputSatuan.trim() });
+      setInputSatuan(''); setErr('');
+      loadAll(); onRefresh();
+    } catch { setErr('Nama satuan sudah ada!'); }
+  };
+
+  const hapusItem = async (id, nama) => {
+    const k = await Swal.fire({ title: `Hapus "${nama}"?`, icon: 'warning', showCancelButton: true, confirmButtonText: 'Ya, hapus', cancelButtonText: 'Batal', confirmButtonColor: '#dc2626' });
+    if (!k.isConfirmed) return;
+    await axios.delete(`${API}/master-item/${id}`);
+    loadAll(); onRefresh();
+  };
+
+  const hapusSatuan = async (id, nama) => {
+    const k = await Swal.fire({ title: `Hapus "${nama}"?`, icon: 'warning', showCancelButton: true, confirmButtonText: 'Ya, hapus', cancelButtonText: 'Batal', confirmButtonColor: '#dc2626' });
+    if (!k.isConfirmed) return;
+    await axios.delete(`${API}/master-satuan/${id}`);
+    loadAll(); onRefresh();
+  };
+
+  const tabStyle = (active) => ({
+    padding: '8px 20px', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600,
+    cursor: 'pointer', background: active ? '#dc2626' : '#f1f5f9',
+    color: active ? 'white' : '#475569',
+  });
+
+  const daftarAktif = tab === 'item' ? items : satuans;
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ background: 'white', borderRadius: 16, padding: 28, width: 460, maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ margin: 0, fontSize: 17, color: '#991b1b' }}>⚙️ Kelola Master Data</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#94a3b8' }}>×</button>
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <button style={tabStyle(tab === 'item')} onClick={() => { setTab('item'); setErr(''); }}>🐔 Item</button>
+          <button style={tabStyle(tab === 'satuan')} onClick={() => { setTab('satuan'); setErr(''); }}>📏 Satuan</button>
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+          <input
+            placeholder={tab === 'item' ? 'Nama item baru...' : 'Nama satuan baru...'}
+            value={tab === 'item' ? inputItem : inputSatuan}
+            onChange={e => tab === 'item' ? setInputItem(e.target.value) : setInputSatuan(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && (tab === 'item' ? tambahItem() : tambahSatuan())}
+            style={{ flex: 1, padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 14 }}
+          />
+          <button
+            onClick={tab === 'item' ? tambahItem : tambahSatuan}
+            style={{ padding: '8px 16px', background: '#dc2626', color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+            + Tambah
+          </button>
+        </div>
+        {err && <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 8 }}>{err}</p>}
+        <div style={{ overflowY: 'auto', flex: 1, border: '1px solid #f1f5f9', borderRadius: 8 }}>
+          {daftarAktif.length === 0 && (
+            <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Belum ada data</div>
+          )}
+          {daftarAktif.map((item, i) => (
+            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderBottom: i < daftarAktif.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#fef2f2', color: '#dc2626', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>{item.nama}</span>
+              </div>
+              <button onClick={() => tab === 'item' ? hapusItem(item.id, item.nama) : hapusSatuan(item.id, item.nama)}
+                style={{ background: '#fef2f2', border: 'none', borderRadius: 6, padding: '4px 12px', cursor: 'pointer', color: '#dc2626', fontSize: 12, fontWeight: 600 }}>
+                Hapus
+              </button>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 14, textAlign: 'right' }}>
+          <button onClick={onClose}
+            style={{ padding: '8px 20px', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function FormPembelian() {
   const [form, setForm] = useState({
     tanggal: dayjs().format('YYYY-MM-DD'),
@@ -125,11 +236,13 @@ export default function FormPembelian() {
   });
   const [masterItem, setMasterItem] = useState([]);
   const [masterSatuan, setMasterSatuan] = useState([]);
+  const [showKelola, setShowKelola] = useState(false);
   const [tglExport, setTglExport] = useState(dayjs().format('YYYY-MM-DD'));
   const [hariIni, setHariIni] = useState([]);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('semua');
   const [msg, setMsg] = useState('');
+  const [detailId, setDetailId] = useState(null);
 
   useEffect(() => { loadHariIni(); loadMaster(); }, []);
 
@@ -222,8 +335,24 @@ export default function FormPembelian() {
 
   return (
     <div>
+      {detailId && (
+        <DetailPembelian id={detailId} onKembali={() => { setDetailId(null); loadHariIni(); }} />
+      )}
+      {!detailId && (<>
       <div className="card">
-        <h2 style={{ color: '#dc2626' }}>🛒 Input Pembelian Ayam</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 style={{ color: '#dc2626', margin: 0 }}>🛒 Input Pembelian Ayam</h2>
+          <button onClick={() => setShowKelola(true)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#fef2f2', border: '1.5px solid #fca5a5', color: '#dc2626', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+            ⚙️ Kelola Item &amp; Satuan
+          </button>
+        </div>
+        {showKelola && (
+          <ModalKelolaMaster
+            onClose={() => setShowKelola(false)}
+            onRefresh={loadMaster}
+          />
+        )}
         <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <div className="form-group">
             <label>Tanggal</label>
@@ -376,6 +505,25 @@ export default function FormPembelian() {
           ))}
           <span style={{ fontSize: 13, color: '#94a3b8', marginLeft: 'auto' }}>{dataTampil.length} data</span>
         </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, color: '#475569', fontWeight: 600 }}>Export Excel:</span>
+          <input type="date" value={tglExport} onChange={e => setTglExport(e.target.value)}
+            style={{ padding: '7px 12px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13 }} />
+          <button onClick={async () => {
+            const res = await fetch(`${API}/export/pembelian-harian?tanggal=${tglExport}`);
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `laporan-pembelian-harian-${tglExport}.xlsx`; a.click();
+            URL.revokeObjectURL(url);
+          }} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#dc2626', color: 'white', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24">
+              <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 11l5 5 5-5M12 4v12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Ekspor ke Excel
+          </button>
+        </div>
         <div style={{ overflowX: 'auto' }}>
           <table>
             <thead>
@@ -391,7 +539,9 @@ export default function FormPembelian() {
                 <tr key={row.id}>
                   <td>{i + 1}</td>
                   <td>{row.nama}</td>
-                  <td style={{ textAlign: 'center' }}>{Number(row.jumlah_item)}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    <EditableItemsPembelian row={row} onSaved={loadHariIni} />
+                  </td>
                   <td><HargaInfo row={row} /></td>
                   <td><b style={{ color: '#dc2626' }}>Rp {Number(row.total).toLocaleString('id-ID')}</b></td>
                   <td>
@@ -405,6 +555,12 @@ export default function FormPembelian() {
                   </td>
                   <td><EditableText value={row.catatan} onSave={val => updateStatusCatatan(row.id, 'catatan', val)} /></td>
                   <td style={{ whiteSpace: 'nowrap' }}>
+                    <button title="Lihat Detail" onClick={() => setDetailId(row.id)}
+                      style={{ background: '#fef2f2', border: 'none', borderRadius: 8, padding: '6px 9px', marginRight: 6, cursor: 'pointer', color: '#dc2626', lineHeight: 1 }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 12.5a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/>
+                      </svg>
+                    </button>
                     <button title="Hapus" onClick={() => hapusData(row.id)}
                       style={{ background: '#fef2f2', border: 'none', borderRadius: 8, padding: '6px 9px', cursor: 'pointer', color: '#dc2626', lineHeight: 1 }}>
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
@@ -418,6 +574,7 @@ export default function FormPembelian() {
           </table>
         </div>
       </div>
+      </>)}
     </div>
   );
 }

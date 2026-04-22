@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import dayjs from 'dayjs';
-import DetailPenjualan from './DetailPenjualan';
-import EditableItems from './EditableItems';
+import DetailPembelian from './DetailPembelian';
+import EditableItemsPembelian from './EditableItemsPembelian';
 import Swal from 'sweetalert2';
 
 const API = 'http://localhost:3001/api';
@@ -152,12 +152,12 @@ export default function DataPenjualan() {
         if (result.isConfirmed) {
         try {
             // Eksekusi hapus ke backend
-            await axios.delete(`${API}/penjualan/${id}`);
+            await axios.delete(`${API}/pembelian/${id}`);
             
             // Notifikasi sukses
             Swal.fire({
             title: 'Terhapus!',
-            text: 'Data penjualan telah berhasil dihapus.',
+            text: 'Data pembelian telah berhasil dihapus.',
             icon: 'success',
             timer: 1500, // Hilang otomatis dalam 1.5 detik
             showConfirmButton: false
@@ -179,7 +179,7 @@ export default function DataPenjualan() {
     };
 
     const updateField = async (id, field, value) => {
-    await axios.patch(`${API}/penjualan/${id}`, { [field]: value });
+    await axios.patch(`${API}/pembelian/${id}`, { [field]: value });
     loadData();
     };
 
@@ -201,7 +201,7 @@ export default function DataPenjualan() {
     };
 
   if (detailId) {
-    return <DetailPenjualan id={detailId} onKembali={() => { setDetailId(null); loadData(); }} />;
+    return <DetailPembelian id={detailId} onKembali={() => { setDetailId(null); loadData(); }} />;
   }
 
   return (
@@ -265,9 +265,9 @@ export default function DataPenjualan() {
                 style={{
                 padding: '7px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600,
                 cursor: 'pointer', border: '1.5px solid',
-                borderColor: filterStatus === s ? (s === 'semua' ? '#2563eb' : s === 'Sudah Dibayar' ? '#dc2626' : '#dc2626') : '#e2e8f0',
-                background: filterStatus === s ? (s === 'semua' ? '#eff6ff' : s === 'Sudah Dibayar' ? '#fef2f2' : '#fef2f2') : 'white',
-                color: filterStatus === s ? (s === 'semua' ? '#2563eb' : s === 'Sudah Dibayar' ? '#dc2626' : '#dc2626') : '#64748b',
+                borderColor: filterStatus === s ? (s === 'semua' ? '#2563eb' : s === 'Sudah Dibayar' ? '#059669' : '#dc2626') : '#e2e8f0',
+                background: filterStatus === s ? (s === 'semua' ? '#eff6ff' : s === 'Sudah Dibayar' ? '#f0fdf4' : '#fef2f2') : 'white',
+                color: filterStatus === s ? (s === 'semua' ? '#2563eb' : s === 'Sudah Dibayar' ? '#059669' : '#dc2626') : '#64748b',
                 }}>
                 {s === 'semua' ? '🔍 Semua' : s === 'Sudah Dibayar' ? '✅ Sudah Dibayar' : '❌ Belum Dibayar'}
             </button>
@@ -313,7 +313,7 @@ export default function DataPenjualan() {
                     <td style={{ whiteSpace: 'nowrap' }}>{dayjs(row.tanggal).format('DD/MM/YYYY')}</td>
                     <td>{row.nama}</td>
                     <td style={{ textAlign: 'center' }}>
-                    <EditableItems
+                    <EditableItemsPembelian
                         row={row}
                         onSaved={() => loadData()}
                     />
@@ -326,9 +326,9 @@ export default function DataPenjualan() {
                     <select value={row.status} onChange={e => updateField(row.id, 'status', e.target.value)}
                         style={{
                         padding: '4px 8px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
-                        borderColor: row.status === 'Sudah Dibayar' ? '#dc2626' : '#dc2626',
-                        color: row.status === 'Sudah Dibayar' ? '#dc2626' : '#dc2626',
-                        background: row.status === 'Sudah Dibayar' ? '#fef2f2' : '#fef2f2',
+                        borderColor: row.status === 'Sudah Dibayar' ? '#059669' : '#dc2626',
+                        color: row.status === 'Sudah Dibayar' ? '#059669' : '#dc2626',
+                        background: row.status === 'Sudah Dibayar' ? '#f0fdf4' : '#fef2f2',
                         }}>
                         {STATUS_OPTIONS.map(s => <option key={s}>{s}</option>)}
                     </select>

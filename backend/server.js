@@ -426,6 +426,26 @@ app.delete('/api/pembelian/:id', async (req, res) => {
 });
 
 
+// === EXPORT EXCEL harian pembelian ===
+app.get('/api/export/pembelian-harian', async (req, res) => {
+  const { tanggal } = req.query;
+  const [rows] = await db.query(`SELECT * FROM pembelian WHERE tanggal = ? ORDER BY id`, [tanggal]);
+  await generateExcel(res, rows, `laporan-pembelian-${tanggal}.xlsx`, 'DC2626');
+});
+
+// === EXPORT EXCEL semua data pembelian (dengan filter) ===
+app.get('/api/export/pembelian-semua', async (req, res) => {
+  const { search, dari, sampai, status } = req.query;
+  let where = 'WHERE 1=1';
+  const params = [];
+  if (search) { where += ` AND (nama LIKE ? OR catatan LIKE ?)`; params.push(`%${search}%`, `%${search}%`); }
+  if (status) { where += ` AND status = ?`; params.push(status); }
+  if (dari) { where += ` AND tanggal >= ?`; params.push(dari); }
+  if (sampai) { where += ` AND tanggal <= ?`; params.push(sampai); }
+  const [rows] = await db.query(`SELECT * FROM pembelian ${where} ORDER BY tanggal DESC, id DESC`, params);
+  await generateExcel(res, rows, `data-pembelian.xlsx`, 'DC2626');
+});
+
 // ============================================================
 // === KAS / KEUANGAN ===
 // ============================================================
