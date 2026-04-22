@@ -298,19 +298,34 @@ export default function FormPembelian() {
   };
 
   const handleSubmit = async () => {
-    if (!form.nama.trim()) { setMsg('⚠️ Nama wajib diisi!'); setTimeout(() => setMsg(''), 2000); return; }
-    if (form.items.some(i => !i.nama || !i.jumlah)) { setMsg('⚠️ Item wajib lengkap!'); setTimeout(() => setMsg(''), 2000); return; }
+    if (!form.nama.trim()) { setMsg('⚠️ Nama wajib diisi!'); setTimeout(() => setMsg(''), 3000); return; }
 
-    const allItems = [
-      ...form.items.map(i => ({ ...i, tipe: 'item' })),
-      ...form.kotakList.map(k => ({ ...k, tipe: 'kotak' })),
-    ];
+    const itemsYangDiisi = form.items.filter(i => i.nama);
+    const adaItem = itemsYangDiisi.length > 0;
+    const adaKotak = form.kotakList.length > 0;
+
+    if (!adaItem && !adaKotak) {
+      setMsg('⚠️ Minimal isi satu item atau satu kotak!'); setTimeout(() => setMsg(''), 3000); return;
+    }
+
+    if (adaItem) {
+      if (itemsYangDiisi.some(i => !i.satuan)) { setMsg('⚠️ Satuan item wajib dipilih!'); setTimeout(() => setMsg(''), 3000); return; }
+      if (itemsYangDiisi.some(i => !i.jumlah)) { setMsg('⚠️ Jumlah item wajib diisi!'); setTimeout(() => setMsg(''), 3000); return; }
+      if (itemsYangDiisi.some(i => !i.harga)) { setMsg('⚠️ Harga item wajib diisi!'); setTimeout(() => setMsg(''), 3000); return; }
+    }
+
+    if (adaKotak) {
+      if (form.kotakList.some(k => !k.jumlah)) { setMsg('⚠️ Jumlah kotak wajib diisi!'); setTimeout(() => setMsg(''), 3000); return; }
+      if (!form.hargaKotak) { setMsg('⚠️ Harga kotak wajib diisi!'); setTimeout(() => setMsg(''), 3000); return; }
+    }
+
+    const allItems = [...itemsYangDiisi, ...form.kotakList];
     const payload = {
       tanggal: form.tanggal, nama: form.nama,
       items_detail: JSON.stringify(allItems),
-      jumlah_item: totalJumlahItem,
+      jumlah_item: hitungJumlahItem(itemsYangDiisi, form.kotakList),
       harga_kotak: form.hargaKotak || 0,
-      total: totalHarga,
+      total: hitungTotal(itemsYangDiisi, form.kotakList, form.hargaKotak),
       status: form.status, catatan: form.catatan
     };
     try {
@@ -496,9 +511,9 @@ export default function FormPembelian() {
           {['semua', 'Sudah Dibayar', 'Belum Dibayar'].map(s => (
             <button key={s} onClick={() => setFilterStatus(s)} style={{
               padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
-              borderColor: filterStatus === s ? (s === 'semua' ? '#2563eb' : s === 'Sudah Dibayar' ? '#059669' : '#dc2626') : '#e2e8f0',
-              background: filterStatus === s ? (s === 'semua' ? '#eff6ff' : s === 'Sudah Dibayar' ? '#f0fdf4' : '#fef2f2') : 'white',
-              color: filterStatus === s ? (s === 'semua' ? '#2563eb' : s === 'Sudah Dibayar' ? '#059669' : '#dc2626') : '#64748b',
+              borderColor: filterStatus === s ? (s === 'semua' ? '#dc2626' : s === 'Sudah Dibayar' ? '#059669' : '#dc2626') : '#e2e8f0',
+              background: filterStatus === s ? (s === 'semua' ? '#fef2f2' : s === 'Sudah Dibayar' ? '#f0fdf4' : '#fef2f2') : 'white',
+              color: filterStatus === s ? (s === 'semua' ? '#dc2626' : s === 'Sudah Dibayar' ? '#059669' : '#dc2626') : '#64748b',
             }}>
               {s === 'semua' ? '🔍 Semua' : s === 'Sudah Dibayar' ? '✅ Sudah Dibayar' : '❌ Belum Dibayar'}
             </button>
@@ -515,7 +530,7 @@ export default function FormPembelian() {
             const blob = await res.blob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url; a.download = `laporan-pembelian-harian-${tglExport}.xlsx`; a.click();
+            a.href = url; a.download = `laporan-pembelian-${tglExport}.xlsx`; a.click();
             URL.revokeObjectURL(url);
           }} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#dc2626', color: 'white', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24">

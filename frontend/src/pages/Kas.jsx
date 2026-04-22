@@ -163,7 +163,7 @@ export default function Kas() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
         {/* Form Pemasukan */}
         <div className="card" style={{ margin: 0 }}>
-          <h2 style={{ color: '#059669', fontSize: 16 }}>💵 Input Uang Masuk</h2>
+          <h2 style={{ color: '#059669', fontSize: 16 }}>💵 Input Pemasukan</h2>
           <div className="form-group"><label>Tanggal</label>
             <input type="date" value={formMasuk.tanggal} onChange={e => setFormMasuk({ ...formMasuk, tanggal: e.target.value })} />
           </div>
