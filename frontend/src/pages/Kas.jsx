@@ -32,6 +32,8 @@ export default function Kas() {
   const [bulanFilter, setBulanFilter] = useState('');
   const [totalFilterMasuk, setTotalFilterMasuk] = useState(0);
   const [totalFilterKeluar, setTotalFilterKeluar] = useState(0);
+  const [showPengeluaranHari, setShowPengeluaranHari] = useState(false);
+  const [showPengeluaranBulan, setShowPengeluaranBulan] = useState(false);
 
   // Filter mode tabel: 'bulanan' | 'range'
   const [filterMode, setFilterMode] = useState('bulanan');
@@ -176,8 +178,26 @@ export default function Kas() {
           <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{dayjs().format('DD MMMM YYYY')}</div>
         </div>
         <div style={{ flex: 1, minWidth: 180, background: 'white', borderRadius: 14, border: '1px solid #e2e8f0', borderLeft: '4px solid #dc2626', padding: '18px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-          <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 6 }}>🔴 Total Pengeluaran Hari Ini</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#dc2626' }}>Rp {Number(pengeluaranHariIni).toLocaleString('id-ID')}</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>🔴 Total Pengeluaran Hari Ini</div>
+            <button onClick={() => setShowPengeluaranHari(!showPengeluaranHari)}
+              title={showPengeluaranHari ? 'Sembunyikan' : 'Tampilkan'}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 2, lineHeight: 1 }}>
+              {showPengeluaranHari ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24M1 1l22 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              )}
+            </button>
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#dc2626' }}>
+            {showPengeluaranHari ? `Rp ${Number(pengeluaranHariIni).toLocaleString('id-ID')}` : '••••••••'}
+          </div>
           <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{dayjs().format('DD MMMM YYYY')}</div>
         </div>
         <div style={{ flex: 1, minWidth: 180, background: 'white', borderRadius: 14, border: '1px solid #e2e8f0', borderLeft: `4px solid ${hasilHariIni >= 0 ? '#7c3aed' : '#f59e0b'}`, padding: '18px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
@@ -195,8 +215,26 @@ export default function Kas() {
           <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{dayjs().format('MMMM YYYY')}</div>
         </div>
         <div style={{ flex: 1, minWidth: 220, background: 'white', borderRadius: 14, border: '1px solid #e2e8f0', borderLeft: '4px solid #f87171', padding: '18px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-          <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 6 }}>📅 Total Pengeluaran Bulan Ini</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#dc2626' }}>Rp {Number(pengeluaranBulanIni).toLocaleString('id-ID')}</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>📅 Total Pengeluaran Bulan Ini</div>
+            <button onClick={() => setShowPengeluaranBulan(!showPengeluaranBulan)}
+              title={showPengeluaranBulan ? 'Sembunyikan' : 'Tampilkan'}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 2, lineHeight: 1 }}>
+              {showPengeluaranBulan ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24M1 1l22 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              )}
+            </button>
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#dc2626' }}>
+            {showPengeluaranBulan ? `Rp ${Number(pengeluaranBulanIni).toLocaleString('id-ID')}` : '••••••••'}
+          </div>
           <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{dayjs().format('MMMM YYYY')}</div>
         </div>
       </div>
